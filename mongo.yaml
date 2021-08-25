@@ -1,0 +1,69 @@
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: generic
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-standard
+
+---
+
+
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mongo
+spec:
+  selector:
+    matchLabels:
+      app: mongo
+  serviceName: "mongo"
+  replicas: 3
+  template:
+    metadata:
+      name: mongo
+      labels:
+        app: mongo
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+        - name: mongo
+          image: mongo
+          command:
+           - mongod
+           - "--bind_ip_all"
+           - "--replSet"
+           - rs0
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: mongo-volume
+              mountPath: /data/db
+  volumeClaimTemplates:
+    - metadata:
+        name: mongo-volume
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 1Gi
+
+
+---
+
+
+apiVersion: v1
+kind: Service 
+metadata:
+  name: mongo
+  labels:
+    app: mongo
+spec:
+  type: NodePort
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+      nodePort: 32500
+  selector:
+    app: mongo
